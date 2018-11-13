@@ -67,7 +67,12 @@ public class BrowserScreenScreenshots extends ScreenshotTest {
                 .setBody(TestHelper.readTestAsset("download.jpg")));
         // Download
         webServer.enqueue(new MockResponse()
+                .setBody(TestHelper.readTestAsset("image_test.html")));
+        webServer.enqueue(new MockResponse()
+                .setBody(TestHelper.readTestAsset("rabbit.jpg")));
+        webServer.enqueue(new MockResponse()
                 .setBody(TestHelper.readTestAsset("download.jpg")));
+
     }
 
     @After
@@ -84,7 +89,6 @@ public class BrowserScreenScreenshots extends ScreenshotTest {
     public void takeScreenshotsOfBrowsingScreen() throws Exception {
         SystemClock.sleep(5000);
         takeScreenshotsOfBrowsingView();
-        takeScreenshotsOfMenu();
         takeScreenshotsOfOpenWithAndShare();
         takeAddToHomeScreenScreenshot();
         takeScreenshotofInsecureCon();
@@ -165,15 +169,25 @@ public class BrowserScreenScreenshots extends ScreenshotTest {
         onView(withId(R.id.display_url))
                 .check(matches(isDisplayed()))
                 .check(matches(withText(containsString(webServer.getHostName()))));
-    }
 
-    private void takeScreenshotsOfMenu() {
-        TestHelper.menuButton.perform(click());
-        Screengrab.screenshot("BrowserViewMenu");
+        // Check add link to autocomplete text
+        onView(withId(R.id.display_url)).perform(click());
+        onView(withId(R.id.addToAutoComplete))
+                .check(matches(isDisplayed()));
+        Screengrab.screenshot("Addlink_autocomplete");
+        onView(withId(R.id.addToAutoComplete))
+                .perform(click());
+        Screengrab.screenshot("new_customURL_popup");
+        onView(withId(R.id.display_url)).perform(click());
+        onView(withId(R.id.addToAutoComplete))
+                .perform(click());
+        Screengrab.screenshot("customURL_alreadyexists_popup");
     }
 
     private void takeScreenshotsOfOpenWithAndShare() throws Exception {
         /* Open_With View */
+        TestHelper.menuButton.perform(click());
+
         UiObject openWithBtn = device.findObject(new UiSelector()
                 .resourceId(TestHelper.getAppName() + ":id/open_select_browser")
                 .enabled(true));
@@ -215,7 +229,7 @@ public class BrowserScreenScreenshots extends ScreenshotTest {
 
     private void takeScreenshotOfTabsTrayAndErase() throws Exception {
         final UiObject mozillaImage = device.findObject(new UiSelector()
-                .descriptionContains("download icon")
+                .resourceId("download")
                 .enabled(true));
 
         UiObject imageMenuTitle = device.findObject(new UiSelector()

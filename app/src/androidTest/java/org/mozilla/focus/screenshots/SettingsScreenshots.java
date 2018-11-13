@@ -19,7 +19,6 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mozilla.focus.R;
-import org.mozilla.focus.helpers.TestHelper;
 
 import java.util.Collections;
 
@@ -78,11 +77,8 @@ public class SettingsScreenshots extends ScreenshotTest {
         Screengrab.screenshot("Settings_View_Top");
 
         /* General Settings */
-        UiObject generalHeading = TestHelper.mDevice.findObject(new UiSelector()
-                .text("General")
-                .resourceId("android:id/title"));
-        generalHeading.waitForExists(waitingTime);
-        generalHeading.click();
+        onView(withText(R.string.preference_category_general))
+                .perform(click());
 
         /* Language List (First page only */
         onView(withText(R.string.preference_language))
@@ -99,7 +95,7 @@ public class SettingsScreenshots extends ScreenshotTest {
         CancelBtn.click();
         onView(withText(R.string.preference_language))
                 .check(matches(isDisplayed()));
-
+        Screengrab.screenshot("General_Submenu");
         Espresso.pressBack();
 
         /* Search Engine List */
@@ -153,13 +149,10 @@ public class SettingsScreenshots extends ScreenshotTest {
         final String urlAutocompletemenu = getString(R.string.preference_subitem_autocomplete);
         onView(withText(urlAutocompletemenu))
                 .perform(click());
-        onView(withText(getString(R.string.preference_autocomplete_custom_summary)))
+        onView(withText(getString(R.string.preference_autocomplete_subitem_manage_sites)))
                 .check(matches(isDisplayed()));
         Screengrab.screenshot("Autocomplete_Menu_Item");
 
-        /* Enable Autocomplete, and enter Custom URLs */
-        onView(withText(getString(R.string.preference_autocomplete_custom_summary)))
-                .perform(click());
         /* Add custom URL */
         onView(childAtPosition(withId(R.id.recycler_view), 4)).perform(click());
 
@@ -223,7 +216,7 @@ public class SettingsScreenshots extends ScreenshotTest {
                 .check(matches(isDisplayed()))
                 .perform(click());
 
-        onView(withText(R.string.menu_about))
+        onView(withId(R.id.infofragment))
                 .check(matches(isDisplayed()));
         Screengrab.screenshot("About_Page");
 
@@ -237,8 +230,9 @@ public class SettingsScreenshots extends ScreenshotTest {
                 .check(matches(isDisplayed()))
                 .perform(click());
 
-        onView(withText(R.string.your_rights))
+        onView(withId(R.id.infofragment))
                 .check(matches(isDisplayed()));
+
         Screengrab.screenshot("YourRights_Page");
         device.pressBack();
         device.pressBack();
@@ -252,5 +246,22 @@ public class SettingsScreenshots extends ScreenshotTest {
             settingsView.scrollToEnd(5);
             Screengrab.screenshot("Privacy_Security_Submenu_bottom");
         }
+
+        // Block Cookies dialog
+        onView(withText(R.string.preference_privacy_category_cookies))
+                .perform(click());
+        CancelBtn.waitForExists(waitingTime);
+        Screengrab.screenshot("Block_cookies_dialog");
+        CancelBtn.click();
+        onView(withText(R.string.preference_privacy_and_security_header))
+                .check(matches(isDisplayed()));
+        device.pressBack();
+
+        // Advanced
+        onView(withText(R.string.preference_category_advanced))
+                .perform(click());
+        onView(withText(R.string.preference_remote_debugging))
+                .check(matches(isDisplayed()));
+        Screengrab.screenshot("Advanced_Page");
     }
 }

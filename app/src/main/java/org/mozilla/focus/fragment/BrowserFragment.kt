@@ -160,7 +160,7 @@ class BrowserFragment : WebFragment(), LifecycleObserver, View.OnClickListener,
 
     private var biometricController: BiometricAuthenticationHandler? = null
 
-    private lateinit var job: Job
+    private var job = Job()
     override val coroutineContext: CoroutineContext
         get() = job + Dispatchers.Main
 
@@ -170,6 +170,8 @@ class BrowserFragment : WebFragment(), LifecycleObserver, View.OnClickListener,
     // user is probably expecting to share, so lets use that here:
     val url: String
         get() = urlView!!.text.toString()
+
+    var openedFromExternalLink: Boolean = false
 
     override lateinit var session: Session
         private set
@@ -781,7 +783,18 @@ class BrowserFragment : WebFragment(), LifecycleObserver, View.OnClickListener,
         }
     }
 
-    override fun onCreateNewSession() {
+    override fun biometricCreateNewSessionWithLink() {
+        for (session in requireComponents.sessionManager.sessions) {
+            if (session != requireComponents.sessionManager.selectedSession) {
+                requireComponents.sessionManager.remove(session)
+            }
+        }
+
+        // Purposefully not calling onAuthSuccess in case we add to that function in the future
+        view!!.alpha = 1f
+    }
+
+    override fun biometricCreateNewSession() {
         requireComponents.sessionManager.removeAndCloseAllSessions()
     }
 
@@ -800,7 +813,9 @@ class BrowserFragment : WebFragment(), LifecycleObserver, View.OnClickListener,
     override fun onResume() {
         super.onResume()
 
-        job = Job()
+        if (job.isCancelled) {
+            job = Job()
+        }
 
         val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
         requireContext().registerReceiver(downloadBroadcastReceiver, filter)
@@ -842,8 +857,10 @@ class BrowserFragment : WebFragment(), LifecycleObserver, View.OnClickListener,
         val fragmentManager = requireActivity().supportFragmentManager
 
         // Check that we need to auth and that the fragment isn't already displayed
-        if (biometricController!!.needsAuth) {
-            biometricController!!.startAuthentication()
+        if (biometricController!!.needsAuth || openedFromExternalLink) {
+            view!!.alpha = 0f
+            biometricController!!.startAuthentication(openedFromExternalLink)
+            openedFromExternalLink = false
 
             // Are we already displaying the biometric fragment?
             if (fragmentManager.findFragmentByTag(BiometricAuthenticationDialogFragment.FRAGMENT_TAG) != null) {
