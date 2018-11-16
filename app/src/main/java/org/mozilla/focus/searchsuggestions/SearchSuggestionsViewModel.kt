@@ -68,9 +68,11 @@ class SearchSuggestionsViewModel(application: Application) : AndroidViewModel(ap
     fun enableSearchSuggestions() {
         preferences.enableSearchSuggestions()
         updateState()
+        setSearchQuery(searchQuery.value ?: "")
     }
 
     fun disableSearchSuggestions() {
+        fetcher.cancelJobs()
         preferences.disableSearchSuggestions()
         updateState()
     }

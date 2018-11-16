@@ -9,15 +9,15 @@ import android.view.View
 import android.widget.CompoundButton
 import android.widget.Switch
 import android.widget.TextView
-import kotlinx.coroutines.experimental.launch
-
+import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.launch
+import mozilla.components.support.utils.ThreadUtils
 import org.mozilla.focus.R
 import org.mozilla.focus.exceptions.ExceptionDomains
 import org.mozilla.focus.fragment.BrowserFragment
 import org.mozilla.focus.telemetry.TelemetryWrapper
-
-import mozilla.components.support.utils.ThreadUtils
 import java.net.URI
+import java.net.URISyntaxException
 
 internal class BlockingItemViewHolder(itemView: View, private val fragment: BrowserFragment) :
     BrowserMenuViewHolder(itemView), CompoundButton.OnCheckedChangeListener {
@@ -60,8 +60,17 @@ internal class BlockingItemViewHolder(itemView: View, private val fragment: Brow
     override fun onCheckedChanged(buttonView: CompoundButton, isChecked: Boolean) {
         fragment.setBlockingUI(isChecked)
 
+        val url = fragment.url
+        val host = try {
+            URI(url).host
+        } catch (e: URISyntaxException) {
+            url
+        } ?: url
+
         if (!isChecked) {
-            addUrlToExceptionsList(url = fragment.url)
+            addUrlToExceptionsList(host = host)
+        } else {
+            removeUrlFromExceptionsList(host = host)
         }
 
         TelemetryWrapper.blockingSwitchEvent(isChecked)
@@ -75,13 +84,21 @@ internal class BlockingItemViewHolder(itemView: View, private val fragment: Brow
         }, Switch_THUMB_ANIMATION_DURATION)
     }
 
-    private fun addUrlToExceptionsList(url: String) {
-        launch {
-            val host = URI(url).host
+    private fun addUrlToExceptionsList(host: String) {
+        fragment.launch(IO) {
             val duplicateURL = ExceptionDomains.load(fragment.requireContext()).contains(host)
 
             if (duplicateURL) return@launch
             ExceptionDomains.add(fragment.requireContext(), host)
+        }
+    }
+
+    private fun removeUrlFromExceptionsList(host: String) {
+        fragment.launch(IO) {
+            if (ExceptionDomains.load(fragment.requireContext()).contains(host)) {
+                TelemetryWrapper.removeExceptionDomains(1)
+                ExceptionDomains.remove(fragment.requireContext(), listOf(host))
+            }
         }
     }
 

@@ -23,23 +23,30 @@ import android.widget.CheckBox
 import android.widget.CompoundButton
 import android.widget.TextView
 import kotlinx.android.synthetic.main.fragment_exceptions_domains.*
-import kotlinx.coroutines.experimental.android.UI
-import kotlinx.coroutines.experimental.async
-import kotlinx.coroutines.experimental.launch
-import org.mozilla.focus.IO
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.Dispatchers.Main
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import org.mozilla.focus.R
 import org.mozilla.focus.autocomplete.AutocompleteDomainFormatter
 import org.mozilla.focus.settings.BaseSettingsFragment
-import org.mozilla.focus.settings.PrivacySecuritySettingsFragment
+import org.mozilla.focus.telemetry.TelemetryWrapper
 import java.util.Collections
 import org.mozilla.focus.utils.ViewUtils
+import kotlin.coroutines.CoroutineContext
 
 typealias DomainFormatter = (String) -> String
 
 /**
  * Fragment showing settings UI listing all exception domains.
  */
-open class ExceptionsListFragment : Fragment() {
+open class ExceptionsListFragment : Fragment(), CoroutineScope {
+    private var job = Job()
+    override val coroutineContext: CoroutineContext
+        get() = job + Dispatchers.Main
     /**
      * ItemTouchHelper for reordering items in the domain list.
      */
@@ -108,16 +115,17 @@ open class ExceptionsListFragment : Fragment() {
         }
 
         removeAllExceptions.setOnClickListener {
-            ExceptionDomains.remove(context!!, ExceptionDomains.load(context!!))
-            fragmentManager!!.beginTransaction()
-                .replace(R.id.container, PrivacySecuritySettingsFragment())
-                .addToBackStack(null)
-                .commit()
+            val domains = ExceptionDomains.load(context!!)
+            TelemetryWrapper.removeAllExceptionDomains(domains.size)
+            ExceptionDomains.remove(context!!, domains)
+            fragmentManager!!.popBackStack()
         }
     }
 
     override fun onResume() {
         super.onResume()
+
+        job = Job()
 
         (activity as BaseSettingsFragment.ActionBarUpdater).apply {
             updateTitle(R.string.preference_exceptions)
@@ -126,13 +134,15 @@ open class ExceptionsListFragment : Fragment() {
 
         (exceptionList.adapter as DomainListAdapter).refresh(activity!!) {
             if ((exceptionList.adapter as DomainListAdapter).itemCount == 0) {
-                fragmentManager!!.beginTransaction()
-                    .replace(R.id.container, PrivacySecuritySettingsFragment())
-                    .addToBackStack(null)
-                    .commit()
+                fragmentManager!!.popBackStack()
             }
             activity?.invalidateOptionsMenu()
         }
+    }
+
+    override fun onStop() {
+        job.cancel()
+        super.onStop()
     }
 
     override fun onCreateOptionsMenu(menu: Menu?, inflater: MenuInflater?) {
@@ -170,7 +180,7 @@ open class ExceptionsListFragment : Fragment() {
         private val selectedDomains: MutableList<String> = mutableListOf()
 
         fun refresh(context: Context, body: (() -> Unit)? = null) {
-            launch(UI) {
+            this@ExceptionsListFragment.launch(Main) {
                 val updatedDomains = async { ExceptionDomains.load(context) }.await()
 
                 domains.clear()
